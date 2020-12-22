@@ -1,12 +1,9 @@
-#include <windows.h>
-#include <stdio.h>
-#include <GL/glew.h>
-#include <GL/freeglut.h>
-#include <ctime>
+#include <math.h>
+#include "GL/SOIL.h"
+#include "GL/glew.h"
+#include "GL/freeglut.h"
 #include <vector>
-#include<conio.h>
-#include<math.h>
-#include<string.h>
+#include <iostream>
 
 using std::vector;
 
@@ -23,22 +20,34 @@ int is_ahead = 0;
 int is_back = 0;
 int width = 0, height = 0;
 
+GLfloat no_light[] = { 0, 0, 0, 1 };
+
 //GL_TEXTURE_2D
 
-/*
-void makeTextureImage()
-{
-	texture = SOIL_load_OGL_texture
-	(
-		"road.jpg",
-		SOIL_LOAD_AUTO,
-		SOIL_CREATE_NEW_ID,
-		SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
-	);
+
+
+float x = 0; float z = 0;
+float SPEED = 0.1;
+float wheel_angle = 0;
+
+unsigned int sphere_texture = 0;
+
+void loadTextures() {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	sphere_texture = SOIL_load_OGL_texture("chees.jpg", SOIL_LOAD_AUTO, SOIL_CREATE_NEW_ID,
+		SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT);
+
+	texture = SOIL_load_OGL_texture
+	(
+		"floor.bmp",
+		SOIL_LOAD_AUTO,
+		SOIL_CREATE_NEW_ID,
+		SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
+	);
 
 	texture2 = SOIL_load_OGL_texture
 	(
@@ -48,20 +57,16 @@ void makeTextureImage()
 		SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
 	);
 }
-*/
 
-float x = 0; float z = 0;
-float SPEED = 0.1;
-float wheel_angle = 0;
-
-// Инициализация
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ
 void init(void)
 {
 	glClearColor(0.0, 0.0, 0.0, 0.0);
+	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH);
 	glEnable(GL_NORMALIZE);
 	glEnable(GL_COLOR_MATERIAL);
 
-	// Свет фонарей
+	// РЎРІРµС‚ С„РѕРЅР°СЂРµР№
 	const GLfloat light_ambient[] = { 0.0, 0.0, 0.0, 1 };
 	const GLfloat light_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };
 	const GLfloat light_specular[] = { 1.0, 1.0, 1.0, 1.0 };
@@ -82,13 +87,13 @@ void init(void)
 
 	//makeTextureImage();
 
-	// Прожектор камеры 
+	// РџСЂРѕР¶РµРєС‚РѕСЂ РєР°РјРµСЂС‹ 
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
 	glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 30.0);
 	glLightf(GL_LIGHT0, GL_LINEAR_ATTENUATION, 0.1);
 	glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, 0.01);
 
-	// Свет машины
+	// РЎРІРµС‚ РјР°С€РёРЅС‹
 	const GLfloat car_diffuse[] = { 1.0, 1.0, 0, 0 };
 	const GLfloat car_ambient[] = { 0.0, 0.0, 0.0, 1 };
 	const GLfloat car_specular[] = { 1.0, 1.0, 0, 1.0 };
@@ -117,6 +122,17 @@ void init(void)
 		glFogf(GL_FOG_START, 5.0);
 		glFogf(GL_FOG_END, 50.0);
 	}
+
+	// РћСЃРІРµС‰РµРЅРёРµ РµР»Рё
+
+	glLightfv(GL_LIGHT6, GL_AMBIENT, light_ambient);
+	glLightfv(GL_LIGHT6, GL_DIFFUSE, light_diffuse);
+	glLightfv(GL_LIGHT6, GL_SPECULAR, light_specular);
+
+	glLightfv(GL_LIGHT7, GL_AMBIENT, light_ambient);
+	glLightfv(GL_LIGHT7, GL_DIFFUSE, light_diffuse);
+
+	loadTextures();
 }
 
 double gr_cos(float angle) noexcept
@@ -139,7 +155,7 @@ void setCamera()
 
 	const GLfloat spot_position[] = { x, camera_pos, z , 1 };
 	GLfloat spot_direction[] = { -x, -camera_pos, -z };
-	const float length = sqrt(x * x + static_cast<double>(camera_pos)* static_cast<double>(camera_pos) + z * z);
+	const float length = sqrt(x * x + static_cast<double>(camera_pos) * static_cast<double>(camera_pos) + z * z);
 	if (length != 0)
 	{
 		spot_direction[0] /= length;
@@ -150,7 +166,7 @@ void setCamera()
 	glLightfv(GL_LIGHT0, GL_POSITION, spot_position);
 }
 
-// Изменение размеров окна
+// РР·РјРµРЅРµРЅРёРµ СЂР°Р·РјРµСЂРѕРІ РѕРєРЅР°
 void reshape(int w, int h)
 {
 	width = w; height = h;
@@ -180,6 +196,15 @@ void drawLights()
 	glTranslatef(3, 0, 13);
 	glLightfv(GL_LIGHT3, GL_POSITION, position);
 	glPopMatrix();
+
+	// РµР»СЊ
+	const GLfloat el_position[] = { 4, 0, 0, 1 };
+
+	glPushMatrix();
+	glTranslatef(-5, 0, 0);
+	glLightfv(GL_LIGHT6, GL_POSITION, el_position);
+	glPopMatrix();
+
 
 	// car lights
 	const GLfloat spot_position[] = { 0, 0, 0, 1 };
@@ -239,7 +264,7 @@ void drawLamps()
 {
 	glColor3f(0.5, 0.5, 0.5);
 
-	//1 фонарь
+	//1 С„РѕРЅР°СЂСЊ
 	glPushMatrix();
 	glTranslatef(-5, 0, 0);
 	glRotatef(-90, 1, 0, 0);
@@ -249,7 +274,7 @@ void drawLamps()
 	glutSolidCone(0.15, 1, 10, 10);
 	glPopMatrix();
 
-	//2 фонарь
+	//2 С„РѕРЅР°СЂСЊ
 	glPushMatrix();
 	glTranslatef(0, 0, -10);
 	glRotatef(-90, 1, 0, 0);
@@ -259,7 +284,7 @@ void drawLamps()
 	glutSolidCone(0.15, 1, 10, 10);
 	glPopMatrix();
 
-	//3 фонарь
+	//3 С„РѕРЅР°СЂСЊ
 	glPushMatrix();
 	glTranslatef(3, 0, 3);
 	glRotatef(-90, 1, 0, 0);
@@ -273,7 +298,7 @@ void drawLamps()
 void drawRoad()
 {
 	glColor3f(1, 1, 1);
-
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
@@ -372,20 +397,128 @@ void _drawRoad()
 	glDisable(GL_TEXTURE_2D);
 }
 
+float amb[] = { 0.8, 0.8, 0.8 };
+float dif[] = { 0.2, 0.2, 0.2 };
+
+void drawSphere()
+{
+	GLfloat lamp_light[] = { 0.2f, 0.2f, 0.2f, 0 };
+	glEnable(GL_TEXTURE_2D);
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, amb);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, dif);
+	glMaterialf(GL_FRONT, GL_SHININESS, 100.0);
+
+	glBindTexture(GL_TEXTURE_2D, sphere_texture);
+
+	glMaterialfv(GL_FRONT, GL_SPECULAR, lamp_light);
+	glutSolidSphere(0.15, 8, 8);
+	glDisable(GL_TEXTURE_2D);
+}
+
+void drawTree()
+{
+	// РґРµСЂРµРІРѕ
+	// 1 РєРѕРЅСѓСЃ
+	glPushMatrix();
+
+	glColor3f(0, 1, 0);
+	glTranslatef(-0.75, 1, -3.0);
+	glRotatef(270.0, 1.0, 0.0, 0.0);
+	glutSolidCone(1.0, 2.0, 15, 15);
+
+	glPopMatrix();
+
+	// 2 РєРѕРЅСѓСЃ
+
+	glPushMatrix();
+
+	glTranslatef(-0.75, 2.0, -3.0); // СЃРґРІРёРі
+	glRotatef(270.0, 1.0, 0.0, 0.0); // РІСЂР°С‰РµРЅРёРµ
+	glutSolidCone(1.0, 2.0, 15, 15);
+
+	glPopMatrix();
+
+	// 3 РєРѕРЅСѓСЃ
+
+	glPushMatrix();
+
+	glTranslatef(-0.75, 3.0, -3.0); // СЃРґРІРёРі
+	glRotatef(270.0, 1.0, 0.0, 0.0); // РІСЂР°С‰РµРЅРёРµ
+	glutSolidCone(1.0, 2.0, 15, 15);
+
+	glPopMatrix();
+
+	// С†РёР»РёРЅРґСЂ
+	glPushMatrix();
+
+	glColor3f(0.139, 0.069, 0.019);
+	glTranslatef(-0.75, 0, -3.0);
+	glRotatef(270.0, 1.0, 0.0, 0.0);
+	glutSolidCylinder(0.3, 1, 32, 32);
+
+	glPopMatrix();
+
+	// РЅРѕРІРѕРіРѕРґРЅРёРµ С€Р°СЂС‹
+	GLfloat sphere_light[] = { 0.0005f, 0.0005f, 0.0005f, 0 };
+	const GLfloat light_pos[] = { 0.f, 0.f, 4.6f, 1.f };
+
+	glPushMatrix();
+	glTranslated(-1.0, 3.5, -3.7);
+	drawSphere();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslated(-1.0, 1.5, -2.2);
+	drawSphere();
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslated(-0.75, 2.0, -3.0);
+	glTranslatef(0.8, 0.5, 0);
+	drawSphere();
+	glPopMatrix();
+
+	// РіРёСЂР»СЏРЅРґР°
+
+	glPushMatrix();
+	double startX = 0;
+	double startY = 0;
+	glTranslated(-1.1, 1, -2.0);
+	glRotatef(270.0, 1.0, 0.0, 0.0);
+	double disc = 0.26;
+	double disc2 = 0.3;
+	for (int i = 1; i < 44; i++)
+	{
+		glTranslated(disc, 0.0, 0);
+		glRotated(360 / 24, 0, 0, 1);
+		glRotated(360 / 80, 1, 0, 0);
+		glColor3f((rand() % 255) / 255.0, (rand() % 255) / 255.0, (rand() % 255) / 255.0);
+		if (glIsEnabled(GL_LIGHT7))
+			glMaterialfv(GL_FRONT, GL_EMISSION, sphere_light);
+		else
+			glMaterialfv(GL_FRONT, GL_EMISSION, no_light);
+		glutSolidSphere(0.08, 6, 6);
+		glColor3f(1.0, 1.0, 1.0);
+	}
+	glPopMatrix();
+}
+
 void drawCar()
 {
 	glPushMatrix();
 	glTranslatef(x, 0.9, z);
 	glRotatef(car_angle, 0, 1, 0);
 
-	// корпус
+	// РєРѕСЂРїСѓСЃ
 
 	for (float y = -0.5; y < 0.5; y += 0.1)
 		for (float x = -0.5; x < 0.5; x += 0.1)
 			for (float z = -1; z < 1.5; z += 0.1) {
 				if (z > 1 && y > 0) break;
-				if (y < 0 && x * x - (y + 0.5) * (y + 0.5) >(z + 0.5)* (z + 0.5))continue;
-				if (y < 0 && x * x - (y + 0.5) * (y + 0.5) >(z - 0.5)* (z - 0.5))continue;
+				if (y < 0 && x * x - (y + 0.5) * (y + 0.5) >(z + 0.5) * (z + 0.5))continue;
+				if (y < 0 && x * x - (y + 0.5) * (y + 0.5) >(z - 0.5) * (z - 0.5))continue;
 				if (y > 0 && x * x + y * y + (z * z) / (2) > 0.49)continue;
 				glPushMatrix();
 				glTranslatef(x, y, z);
@@ -398,7 +531,7 @@ void drawCar()
 	glTranslatef(0, -0.6, 0);
 	glColor3f(0.2, 0.2, 0.2);
 
-	// колеса
+	// РєРѕР»РµСЃР°
 	glPushMatrix();
 	glTranslatef(0.4, 0, 0.5);
 	drawWheel();
@@ -422,7 +555,7 @@ void drawCar()
 	glPopMatrix();
 }
 
-// Отображение
+// РћС‚РѕР±СЂР°Р¶РµРЅРёРµ
 void display(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -442,6 +575,7 @@ void display(void)
 		wheel_angle -= 5;
 	}
 
+	drawTree();
 	drawLights();
 	_drawRoad();
 	drawCar();
@@ -449,7 +583,7 @@ void display(void)
 	glutSwapBuffers();
 }
 
-// Реакция на клавиатуру
+// Р РµР°РєС†РёСЏ РЅР° РєР»Р°РІРёР°С‚СѓСЂСѓ
 void specialKeys(int key, int x, int y)
 {
 	switch (key)
@@ -485,6 +619,26 @@ void specialKeys(int key, int x, int y)
 		{
 			glEnable(GL_LIGHT4);
 			glEnable(GL_LIGHT5);
+		}
+		break;
+	case GLUT_KEY_F6:
+		if (glIsEnabled(GL_LIGHT6))
+		{
+			glDisable(GL_LIGHT6);
+		}
+		else
+		{
+			glEnable(GL_LIGHT6);
+		}
+		break;
+	case GLUT_KEY_F7:
+		if (glIsEnabled(GL_LIGHT7))
+		{
+			glDisable(GL_LIGHT7);
+		}
+		else
+		{
+			glEnable(GL_LIGHT7);
 		}
 		break;
 	case GLUT_KEY_F10:
@@ -551,4 +705,3 @@ int main(int argc, char* argv[])
 	glutMainLoop();
 	return 0;
 }
-
